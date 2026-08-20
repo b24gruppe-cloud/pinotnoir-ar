@@ -6,8 +6,8 @@
 <title>Pinot Noir Barrique — AR</title>
 
 <!-- MindAR needs a real internet connection on the phone that opens this page - these load from public CDNs -->
-<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<script defer src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
 <style>
   html, body{ margin:0; padding:0; height:100%; overflow:hidden; background:#000; font-family:Georgia, 'Times New Roman', serif; }
@@ -54,6 +54,7 @@
   <h1>Pinot Noir Barrique &mdash; live</h1>
   <p>Richte dein Handy auf die Etikette der Flasche. Sobald sie erkannt wird, erwacht sie kurz zum Leben.</p>
   <button id="startBtn">Kamera starten</button>
+  <div id="loadStatus" style="margin-top:14px;font-size:12px;opacity:.65">AR wird geladen …</div>
 </div>
 
 <div id="errorBox">
@@ -325,7 +326,24 @@
     });
   }
 
+  const loadStatus = document.getElementById('loadStatus');
+  const waitForAR = setInterval(() => {
+    if (window.AFRAME && window.MINDAR) {
+      clearInterval(waitForAR);
+      if (loadStatus) loadStatus.textContent = 'Bereit';
+    }
+  }, 250);
+  setTimeout(() => {
+    if (!(window.AFRAME && window.MINDAR) && loadStatus) {
+      loadStatus.textContent = 'AR-Bibliothek konnte nicht geladen werden. Seite neu laden.';
+    }
+  }, 12000);
+
   startBtn.addEventListener('click', () => {
+    if (!(window.AFRAME && window.MINDAR)) {
+      if (loadStatus) loadStatus.textContent = 'Bitte kurz warten – AR wird noch geladen.';
+      return;
+    }
     if (!TARGET_MIND_BASE64){
       errorBox.style.display = 'flex';
       return;
