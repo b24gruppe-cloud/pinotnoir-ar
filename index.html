@@ -6,8 +6,8 @@
 <title>Pinot Noir Barrique — AR</title>
 
 <!-- MindAR needs a real internet connection on the phone that opens this page - these load from public CDNs -->
-<script defer src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
 <style>
   html, body{ margin:0; padding:0; height:100%; overflow:hidden; background:#000; font-family:Georgia, 'Times New Roman', serif; }
@@ -54,7 +54,6 @@
   <h1>Pinot Noir Barrique &mdash; live</h1>
   <p>Richte dein Handy auf die Etikette der Flasche. Sobald sie erkannt wird, erwacht sie kurz zum Leben.</p>
   <button id="startBtn">Kamera starten</button>
-  <div id="loadStatus" style="margin-top:14px;font-size:12px;opacity:.65">AR wird geladen …</div>
 </div>
 
 <div id="errorBox">
@@ -287,12 +286,14 @@
   function buildScene(targetUrl){
     const sceneEl = document.createElement('a-scene');
     sceneEl.setAttribute('mindar-image', `imageTargetSrc: ${targetUrl}; autoStart: false; uiScanning: no; uiLoading: no; uiError: no;`);
+    sceneEl.setAttribute('embedded', '');
     sceneEl.setAttribute('color-space', 'sRGB');
     sceneEl.setAttribute('renderer', 'colorManagement: true, physicallyCorrectLights');
     sceneEl.setAttribute('vr-mode-ui', 'enabled: false');
     sceneEl.setAttribute('device-orientation-permission-ui', 'enabled: false');
 
     const camera = document.createElement('a-camera');
+    camera.setAttribute('active', 'false');
     camera.setAttribute('position', '0 0 0');
     camera.setAttribute('look-controls', 'enabled: false');
     sceneEl.appendChild(camera);
@@ -320,32 +321,36 @@
       active = false;
     });
 
-    sceneEl.addEventListener('loaded', () => {
-      const sys = sceneEl.systems['mindar-image-system'];
-      if (sys) sys.start();
+    sceneEl.addEventListener('loaded', async () => {
+      try {
+        const sys = sceneEl.systems['mindar-image-system'];
+        if (!sys) throw new Error('MindAR image system was not created.');
+        await sys.start();
+      } catch (err) {
+        console.error(err);
+        startOverlay.style.display = 'flex';
+        startOverlay.querySelector('h1').textContent = 'Kamera konnte nicht gestartet werden';
+        startOverlay.querySelector('p').textContent =
+          (err && err.message ? err.message : String(err)) +
+          ' — Bitte Kameraberechtigung prüfen und die Seite neu laden.';
+        startBtn.style.display = 'none';
+      }
     });
   }
 
-  const loadStatus = document.getElementById('loadStatus');
-  const waitForAR = setInterval(() => {
-    if (window.AFRAME && window.MINDAR) {
-      clearInterval(waitForAR);
-      if (loadStatus) loadStatus.textContent = 'Bereit';
-    }
-  }, 250);
-  setTimeout(() => {
-    if (!(window.AFRAME && window.MINDAR) && loadStatus) {
-      loadStatus.textContent = 'AR-Bibliothek konnte nicht geladen werden. Seite neu laden.';
-    }
-  }, 12000);
-
   startBtn.addEventListener('click', () => {
-    if (!(window.AFRAME && window.MINDAR)) {
-      if (loadStatus) loadStatus.textContent = 'Bitte kurz warten – AR wird noch geladen.';
-      return;
-    }
     if (!TARGET_MIND_BASE64){
       errorBox.style.display = 'flex';
+      return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      startOverlay.querySelector('p').textContent =
+        'Dieser Browser unterstützt keinen Kamerazugriff über getUserMedia.';
+      return;
+    }
+    if (!window.AFRAME) {
+      startOverlay.querySelector('p').textContent =
+        'A-Frame konnte nicht geladen werden. Bitte Internetverbindung prüfen und neu laden.';
       return;
     }
     startOverlay.style.display = 'none';
